@@ -218,7 +218,7 @@
     display: grid;
     grid-template-columns: 2fr 1fr auto;
     gap: 10px;
-    margin-bottom: 18px;
+    margin-bottom: 10px;
   }
   .add-food input {
     font: inherit;
@@ -240,6 +240,41 @@
     font: inherit;
     font-weight: 700;
     cursor: pointer;
+  }
+
+  .food-preview {
+    min-height: 18px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .food-preview.matched { color: var(--accent); font-weight: 600; }
+  .food-preview.unmatched { color: var(--warn); }
+
+  .manual-kcal-wrap {
+    display: none;
+    margin-bottom: 18px;
+    background: var(--warn-soft);
+    border-radius: 9px;
+    padding: 12px 14px;
+  }
+  .manual-kcal-wrap.visible { display: block; }
+  .manual-kcal-wrap label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .manual-kcal-wrap input {
+    font: inherit;
+    font-size: 15px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    outline: none;
+    width: 140px;
   }
 
   .food-list { display: flex; flex-direction: column; gap: 8px; }
@@ -378,9 +413,15 @@
     </div>
 
     <div class="add-food">
-      <input type="text" id="foodName" placeholder="Lebensmittel, z. B. Haferflocken">
-      <input type="number" id="foodKcal" placeholder="kcal" min="0">
+      <input type="text" id="foodName" list="foodOptions" placeholder="Lebensmittel, z. B. Apfel" autocomplete="off">
+      <datalist id="foodOptions"></datalist>
+      <input type="number" id="foodGrams" placeholder="Menge (g)" min="1" value="100">
       <button type="button" id="addFoodBtn">Hinzufügen</button>
+    </div>
+    <div class="food-preview" id="foodPreview"></div>
+    <div class="manual-kcal-wrap" id="manualKcalWrap">
+      <label for="manualKcal">Nicht in der Datenbank gefunden – Kalorien für diese Menge manuell eingeben:</label>
+      <input type="number" id="manualKcal" placeholder="kcal" min="0">
     </div>
 
     <div class="food-list" id="foodList">
@@ -506,6 +547,115 @@
 
   document.getElementById('calcBtn').addEventListener('click', calc);
 
+  // ── Lebensmitteldatenbank (kcal pro 100 g) ──
+  const FOOD_DB = [
+    { name: 'Apfel', kcal100: 52 },
+    { name: 'Banane', kcal100: 89 },
+    { name: 'Orange', kcal100: 47 },
+    { name: 'Erdbeeren', kcal100: 32 },
+    { name: 'Weintrauben', kcal100: 69 },
+    { name: 'Birne', kcal100: 57 },
+    { name: 'Wassermelone', kcal100: 30 },
+    { name: 'Ananas', kcal100: 50 },
+    { name: 'Kiwi', kcal100: 61 },
+    { name: 'Mango', kcal100: 60 },
+    { name: 'Avocado', kcal100: 160 },
+    { name: 'Karotte', kcal100: 41 },
+    { name: 'Brokkoli', kcal100: 34 },
+    { name: 'Tomate', kcal100: 18 },
+    { name: 'Gurke', kcal100: 15 },
+    { name: 'Paprika', kcal100: 31 },
+    { name: 'Kartoffel, gekocht', kcal100: 87 },
+    { name: 'Pommes frites', kcal100: 312 },
+    { name: 'Zwiebel', kcal100: 40 },
+    { name: 'Kopfsalat', kcal100: 15 },
+    { name: 'Spinat', kcal100: 23 },
+    { name: 'Blumenkohl', kcal100: 25 },
+    { name: 'Reis, gekocht', kcal100: 130 },
+    { name: 'Nudeln, gekocht', kcal100: 131 },
+    { name: 'Vollkornbrot', kcal100: 250 },
+    { name: 'Weißbrot', kcal100: 265 },
+    { name: 'Brötchen', kcal100: 275 },
+    { name: 'Haferflocken', kcal100: 372 },
+    { name: 'Couscous, gekocht', kcal100: 112 },
+    { name: 'Quinoa, gekocht', kcal100: 120 },
+    { name: 'Milch 1,5%', kcal100: 46 },
+    { name: 'Joghurt, Natur', kcal100: 61 },
+    { name: 'Magerquark', kcal100: 67 },
+    { name: 'Gouda', kcal100: 356 },
+    { name: 'Frischkäse', kcal100: 250 },
+    { name: 'Butter', kcal100: 717 },
+    { name: 'Ei', kcal100: 155 },
+    { name: 'Hähnchenbrust', kcal100: 165 },
+    { name: 'Rindfleisch, mager', kcal100: 250 },
+    { name: 'Schweineschnitzel', kcal100: 242 },
+    { name: 'Lachs', kcal100: 208 },
+    { name: 'Thunfisch, in Wasser', kcal100: 116 },
+    { name: 'Garnelen', kcal100: 99 },
+    { name: 'Linsen, gekocht', kcal100: 116 },
+    { name: 'Kichererbsen, gekocht', kcal100: 164 },
+    { name: 'Tofu', kcal100: 76 },
+    { name: 'Mandeln', kcal100: 579 },
+    { name: 'Walnüsse', kcal100: 654 },
+    { name: 'Erdnüsse', kcal100: 567 },
+    { name: 'Erdnussbutter', kcal100: 588 },
+    { name: 'Schokolade, Vollmilch', kcal100: 534 },
+    { name: 'Chips', kcal100: 536 },
+    { name: 'Honig', kcal100: 304 },
+    { name: 'Nutella', kcal100: 539 },
+    { name: 'Cornflakes', kcal100: 378 },
+    { name: 'Cola', kcal100: 42 },
+    { name: 'Orangensaft', kcal100: 45 },
+    { name: 'Bier', kcal100: 43 },
+    { name: 'Wein, rot', kcal100: 85 },
+    { name: 'Olivenöl', kcal100: 884 },
+    { name: 'Rapsöl', kcal100: 884 }
+  ];
+
+  function findFood(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return null;
+    const exact = FOOD_DB.find(f => f.name.toLowerCase() === q);
+    if (exact) return exact;
+    return FOOD_DB.find(f => f.name.toLowerCase().includes(q)) || null;
+  }
+
+  const foodOptionsList = document.getElementById('foodOptions');
+  foodOptionsList.innerHTML = FOOD_DB.map(f => '<option value="' + f.name + '">').join('');
+
+  const foodNameInput = document.getElementById('foodName');
+  const foodGramsInput = document.getElementById('foodGrams');
+  const foodPreview = document.getElementById('foodPreview');
+  const manualKcalWrap = document.getElementById('manualKcalWrap');
+  const manualKcalInput = document.getElementById('manualKcal');
+
+  function updatePreview() {
+    const name = foodNameInput.value.trim();
+    const grams = parseFloat(foodGramsInput.value) || 0;
+    const match = findFood(name);
+
+    if (!name) {
+      foodPreview.textContent = '';
+      foodPreview.className = 'food-preview';
+      manualKcalWrap.classList.remove('visible');
+      return;
+    }
+
+    if (match) {
+      const kcal = Math.round(match.kcal100 * grams / 100);
+      foodPreview.textContent = '≈ ' + kcal.toLocaleString('de-DE') + ' kcal für ' + grams + ' g ' + match.name + ' (' + match.kcal100 + ' kcal/100 g)';
+      foodPreview.className = 'food-preview matched';
+      manualKcalWrap.classList.remove('visible');
+    } else {
+      foodPreview.textContent = '„' + name + '“ ist nicht in der Datenbank.';
+      foodPreview.className = 'food-preview unmatched';
+      manualKcalWrap.classList.add('visible');
+    }
+  }
+
+  foodNameInput.addEventListener('input', updatePreview);
+  foodGramsInput.addEventListener('input', updatePreview);
+
   // ── Tracker ──
   function getTodayEntries() {
     const state = loadState();
@@ -535,7 +685,7 @@
           '<span class="fname"></span>' +
           '<span class="fright"><span class="fkcal"></span><button class="fdel" title="Entfernen">×</button></span>';
         row.querySelector('.fname').textContent = entry.name;
-        row.querySelector('.fkcal').textContent = entry.kcal + ' kcal';
+        row.querySelector('.fkcal').textContent = (entry.grams ? entry.grams + ' g · ' : '') + entry.kcal + ' kcal';
         row.querySelector('.fdel').addEventListener('click', () => {
           entries.splice(idx, 1);
           setTodayEntries(entries);
@@ -560,30 +710,52 @@
   }
 
   document.getElementById('addFoodBtn').addEventListener('click', addFood);
-  document.getElementById('foodKcal').addEventListener('keydown', e => {
+  manualKcalInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') addFood();
   });
-  document.getElementById('foodName').addEventListener('keydown', e => {
+  foodGramsInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') addFood();
+  });
+  foodNameInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') addFood();
   });
 
   function addFood() {
-    const nameInput = document.getElementById('foodName');
-    const kcalInput = document.getElementById('foodKcal');
-    const name = nameInput.value.trim();
-    const kcal = parseFloat(kcalInput.value);
+    const name = foodNameInput.value.trim();
+    const grams = parseFloat(foodGramsInput.value) || 0;
 
-    if (!name || !kcal || kcal <= 0) {
-      alert('Bitte Name und eine gültige Kalorienzahl angeben.');
+    if (!name || grams <= 0) {
+      alert('Bitte Lebensmittel und eine gültige Menge (g) angeben.');
       return;
     }
 
+    const match = findFood(name);
+    let kcal, entryName;
+
+    if (match) {
+      kcal = Math.round(match.kcal100 * grams / 100);
+      entryName = match.name;
+    } else {
+      const manualKcal = parseFloat(manualKcalInput.value);
+      if (!manualKcal || manualKcal <= 0) {
+        alert('Dieses Lebensmittel ist nicht in der Datenbank – bitte die Kalorien manuell eingeben.');
+        manualKcalInput.focus();
+        return;
+      }
+      kcal = Math.round(manualKcal);
+      entryName = name;
+    }
+
     const entries = getTodayEntries();
-    entries.push({ name, kcal: Math.round(kcal) });
+    entries.push({ name: entryName, grams, kcal });
     setTodayEntries(entries);
-    nameInput.value = '';
-    kcalInput.value = '';
-    nameInput.focus();
+    foodNameInput.value = '';
+    foodGramsInput.value = '100';
+    manualKcalInput.value = '';
+    manualKcalWrap.classList.remove('visible');
+    foodPreview.textContent = '';
+    foodPreview.className = 'food-preview';
+    foodNameInput.focus();
     renderTracker();
   }
 

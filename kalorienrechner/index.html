@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalorienrechner</title>
+<style>
+  :root {
+    --bg: #f4f6f5;
+    --paper: #ffffff;
+    --ink: #16211c;
+    --accent: #2f7a4f;
+    --accent-soft: #e4f2ea;
+    --warn: #c4571a;
+    --warn-soft: #fbeae0;
+    --muted: #6b7570;
+    --line: #dfe5e1;
+    --shadow: 0 4px 24px rgba(22,33,28,0.08);
+    --shadow-lg: 0 16px 48px rgba(22,33,28,0.14);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121815;
+      --paper: #1a2320;
+      --ink: #eef2f0;
+      --accent: #4fb87d;
+      --accent-soft: #1e3327;
+      --warn: #e08a52;
+      --warn-soft: #3a2418;
+      --muted: #93a099;
+      --line: #2a352f;
+      --shadow: 0 4px 24px rgba(0,0,0,0.35);
+      --shadow-lg: 0 16px 48px rgba(0,0,0,0.5);
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+  main { width: 100%; max-width: 880px; }
+
+  header { margin-bottom: 32px; }
+  header .label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  header h1 {
+    font-size: clamp(1.7rem, 4vw, 2.4rem);
+    margin-top: 6px;
+    letter-spacing: -0.02em;
+  }
+  header p { color: var(--muted); margin-top: 6px; font-size: 15px; }
+
+  .card {
+    background: var(--paper);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 28px;
+    margin-bottom: 24px;
+    border: 1px solid var(--line);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 18px;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .field input, .field select {
+    font: inherit;
+    font-size: 15px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    border: 1.5px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+
+  .segmented {
+    display: flex;
+    border-radius: 9px;
+    overflow: hidden;
+    border: 1.5px solid var(--line);
+  }
+  .segmented button {
+    flex: 1;
+    padding: 10px 8px;
+    border: none;
+    background: var(--bg);
+    color: var(--muted);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .segmented button.active { background: var(--accent); color: #fff; }
+
+  .goal-rate { display: none; margin-top: 14px; }
+  .goal-rate.visible { display: block; }
+  .goal-rate label { font-size: 13px; font-weight: 600; color: var(--muted); display:block; margin-bottom: 8px;}
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+  .goal-rate .rate-value { font-size: 13px; color: var(--ink); margin-top: 4px; }
+
+  button.primary {
+    margin-top: 24px;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .1s ease, box-shadow .15s ease;
+  }
+  button.primary:hover { box-shadow: var(--shadow-lg); }
+  button.primary:active { transform: scale(0.99); }
+
+  .results { display: none; }
+  .results.visible { display: block; }
+
+  .result-hero {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .stat {
+    flex: 1;
+    min-width: 140px;
+    background: var(--accent-soft);
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+  }
+  .stat.highlight { background: var(--accent); color: #fff; }
+  .stat .num { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; }
+  .stat .cap { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; opacity: .75; margin-top: 4px; }
+
+  .macro-row { margin-bottom: 16px; }
+  .macro-row:last-child { margin-bottom: 0; }
+  .macro-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .macro-head .name { font-weight: 700; }
+  .macro-head .detail { color: var(--muted); }
+  .bar-track {
+    height: 10px;
+    border-radius: 6px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .bar-fill { height: 100%; border-radius: 6px; }
+  .fill-protein { background: #2f7a4f; }
+  .fill-fat { background: #c4571a; }
+  .fill-carbs { background: #3a6ea5; }
+
+  .note {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 20px;
+    line-height: 1.5;
+  }
+
+  /* ── TRACKER ── */
+  .tracker-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .tracker-head h2 { font-size: 1.2rem; }
+  .tracker-summary { font-size: 14px; color: var(--muted); }
+  .tracker-summary strong { color: var(--ink); }
+
+  .progress-track {
+    height: 14px;
+    border-radius: 8px;
+    background: var(--line);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 8px;
+    transition: width .2s ease;
+  }
+  .progress-fill.over { background: var(--warn); }
+
+  .add-food {
+    display: grid;
+    grid-template-columns: 2fr 1fr auto;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .add-food input {
+    font: inherit;
+    font-size: 15px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    border: 1.5px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    outline: none;
+  }
+  .add-food input:focus { border-color: var(--accent); }
+  .add-food button {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 9px;
+    background: var(--ink);
+    color: var(--paper);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .food-list { display: flex; flex-direction: column; gap: 8px; }
+  .food-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 9px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+  }
+  .food-item .fname { font-weight: 600; font-size: 14px; }
+  .food-item .fright { display: flex; align-items: center; gap: 12px; }
+  .food-item .fkcal { color: var(--muted); font-size: 14px; }
+  .food-item .fdel {
+    border: none;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 2px;
+  }
+  .food-item .fdel:hover { color: var(--warn); }
+  .empty-state { color: var(--muted); font-size: 14px; padding: 12px 0; text-align: center; }
+
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="label">Kalorienrechner</div>
+    <h1>Wie viele Kalorien brauchst du?</h1>
+    <p>Berechne deinen Grundumsatz, Gesamtumsatz und ein Kalorienziel – und behalte deinen Tag im Blick.</p>
+  </header>
+
+  <section class="card">
+    <div class="grid">
+      <div class="field">
+        <label for="gender">Geschlecht</label>
+        <div class="segmented" id="genderSeg">
+          <button type="button" data-value="female" class="active">Frau</button>
+          <button type="button" data-value="male">Mann</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="age">Alter (Jahre)</label>
+        <input type="number" id="age" min="14" max="100" value="30">
+      </div>
+      <div class="field">
+        <label for="height">Größe (cm)</label>
+        <input type="number" id="height" min="120" max="230" value="170">
+      </div>
+      <div class="field">
+        <label for="weight">Gewicht (kg)</label>
+        <input type="number" id="weight" min="30" max="250" value="70">
+      </div>
+      <div class="field">
+        <label for="activity">Aktivitätslevel</label>
+        <select id="activity">
+          <option value="1.2">Sitzend (wenig/keine Bewegung)</option>
+          <option value="1.375">Leicht aktiv (1–3× Sport/Woche)</option>
+          <option value="1.55" selected>Moderat aktiv (3–5× Sport/Woche)</option>
+          <option value="1.725">Sehr aktiv (6–7× Sport/Woche)</option>
+          <option value="1.9">Extrem aktiv (körperliche Arbeit + Sport)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Ziel</label>
+        <div class="segmented" id="goalSeg">
+          <button type="button" data-value="lose">Abnehmen</button>
+          <button type="button" data-value="maintain" class="active">Halten</button>
+          <button type="button" data-value="gain">Zunehmen</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="goal-rate" id="goalRateWrap">
+      <label for="rate">Tempo: <span id="rateLabel">0,5 kg / Woche</span></label>
+      <input type="range" id="rate" min="0.25" max="1" step="0.25" value="0.5">
+    </div>
+
+    <button class="primary" id="calcBtn">Kalorien berechnen</button>
+  </section>
+
+  <section class="card results" id="results">
+    <div class="result-hero">
+      <div class="stat">
+        <div class="num" id="bmrOut">–</div>
+        <div class="cap">Grundumsatz (BMR)</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="tdeeOut">–</div>
+        <div class="cap">Erhaltungskalorien</div>
+      </div>
+      <div class="stat highlight">
+        <div class="num" id="targetOut">–</div>
+        <div class="cap">Dein Kalorienziel / Tag</div>
+      </div>
+    </div>
+
+    <div class="macro-row">
+      <div class="macro-head">
+        <span class="name">Protein</span>
+        <span class="detail" id="proteinDetail">–</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill fill-protein" id="proteinBar" style="width:0%"></div></div>
+    </div>
+    <div class="macro-row">
+      <div class="macro-head">
+        <span class="name">Fett</span>
+        <span class="detail" id="fatDetail">–</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill fill-fat" id="fatBar" style="width:0%"></div></div>
+    </div>
+    <div class="macro-row">
+      <div class="macro-head">
+        <span class="name">Kohlenhydrate</span>
+        <span class="detail" id="carbsDetail">–</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill fill-carbs" id="carbsBar" style="width:0%"></div></div>
+    </div>
+
+    <p class="note">Berechnet mit der Mifflin-St-Jeor-Formel. Diese Werte sind Richtwerte und ersetzen keine medizinische oder ernährungswissenschaftliche Beratung.</p>
+  </section>
+
+  <section class="card">
+    <div class="tracker-head">
+      <h2>Heutige Kalorien</h2>
+      <div class="tracker-summary"><strong id="consumedOut">0</strong> / <span id="targetRef">– kcal</span></div>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+
+    <div class="add-food">
+      <input type="text" id="foodName" placeholder="Lebensmittel, z. B. Haferflocken">
+      <input type="number" id="foodKcal" placeholder="kcal" min="0">
+      <button type="button" id="addFoodBtn">Hinzufügen</button>
+    </div>
+
+    <div class="food-list" id="foodList">
+      <div class="empty-state">Noch keine Einträge für heute.</div>
+    </div>
+  </section>
+
+  <footer>Alle Daten bleiben lokal in deinem Browser gespeichert.</footer>
+</main>
+
+<script>
+(function () {
+  const genderSeg = document.getElementById('genderSeg');
+  const goalSeg = document.getElementById('goalSeg');
+  const goalRateWrap = document.getElementById('goalRateWrap');
+  const rateInput = document.getElementById('rate');
+  const rateLabel = document.getElementById('rateLabel');
+
+  let gender = 'female';
+  let goal = 'maintain';
+
+  function selectSegmented(container, value, onChange) {
+    [...container.querySelectorAll('button')].forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    onChange(value);
+  }
+
+  genderSeg.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    gender = btn.dataset.value;
+    selectSegmented(genderSeg, gender, () => {});
+  });
+
+  goalSeg.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    goal = btn.dataset.value;
+    selectSegmented(goalSeg, goal, () => {});
+    goalRateWrap.classList.toggle('visible', goal !== 'maintain');
+  });
+
+  rateInput.addEventListener('input', () => {
+    rateLabel.textContent = parseFloat(rateInput.value).toString().replace('.', ',') + ' kg / Woche';
+  });
+
+  const STORAGE_KEY = 'kalorienrechner_state_v1';
+
+  function loadState() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveState(patch) {
+    const state = loadState();
+    Object.assign(state, patch);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function todayKey() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  let currentTarget = null;
+
+  function calc() {
+    const age = parseFloat(document.getElementById('age').value) || 0;
+    const height = parseFloat(document.getElementById('height').value) || 0;
+    const weight = parseFloat(document.getElementById('weight').value) || 0;
+    const activity = parseFloat(document.getElementById('activity').value);
+
+    if (age <= 0 || height <= 0 || weight <= 0) {
+      alert('Bitte gib gültige Werte für Alter, Größe und Gewicht ein.');
+      return;
+    }
+
+    const bmr = gender === 'male'
+      ? 10 * weight + 6.25 * height - 5 * age + 5
+      : 10 * weight + 6.25 * height - 5 * age - 161;
+
+    const tdee = bmr * activity;
+
+    let target = tdee;
+    if (goal !== 'maintain') {
+      const rate = parseFloat(rateInput.value);
+      const weeklyKcal = rate * 7700;
+      const dailyDelta = weeklyKcal / 7;
+      target = goal === 'lose' ? tdee - dailyDelta : tdee + dailyDelta;
+    }
+
+    const proteinG = weight * 1.8;
+    const proteinKcal = proteinG * 4;
+    const fatG = weight * 1.0;
+    const fatKcal = fatG * 9;
+    const carbsKcal = Math.max(target - proteinKcal - fatKcal, 0);
+    const carbsG = carbsKcal / 4;
+
+    document.getElementById('bmrOut').textContent = Math.round(bmr).toLocaleString('de-DE');
+    document.getElementById('tdeeOut').textContent = Math.round(tdee).toLocaleString('de-DE');
+    document.getElementById('targetOut').textContent = Math.round(target).toLocaleString('de-DE');
+
+    setMacro('protein', proteinG, proteinKcal, target);
+    setMacro('fat', fatG, fatKcal, target);
+    setMacro('carbs', carbsG, carbsKcal, target);
+
+    document.getElementById('results').classList.add('visible');
+    currentTarget = Math.round(target);
+    document.getElementById('targetRef').textContent = currentTarget.toLocaleString('de-DE') + ' kcal';
+    saveState({ target: currentTarget });
+    renderTracker();
+  }
+
+  function setMacro(key, grams, kcal, target) {
+    const pct = target > 0 ? Math.min((kcal / target) * 100, 100) : 0;
+    document.getElementById(key + 'Detail').textContent = Math.round(grams) + ' g · ' + Math.round(kcal) + ' kcal';
+    document.getElementById(key + 'Bar').style.width = pct + '%';
+  }
+
+  document.getElementById('calcBtn').addEventListener('click', calc);
+
+  // ── Tracker ──
+  function getTodayEntries() {
+    const state = loadState();
+    const day = state.days && state.days[todayKey()];
+    return day || [];
+  }
+
+  function setTodayEntries(entries) {
+    const state = loadState();
+    state.days = state.days || {};
+    state.days[todayKey()] = entries;
+    saveState(state);
+  }
+
+  function renderTracker() {
+    const entries = getTodayEntries();
+    const list = document.getElementById('foodList');
+    list.innerHTML = '';
+
+    if (entries.length === 0) {
+      list.innerHTML = '<div class="empty-state">Noch keine Einträge für heute.</div>';
+    } else {
+      entries.forEach((entry, idx) => {
+        const row = document.createElement('div');
+        row.className = 'food-item';
+        row.innerHTML =
+          '<span class="fname"></span>' +
+          '<span class="fright"><span class="fkcal"></span><button class="fdel" title="Entfernen">×</button></span>';
+        row.querySelector('.fname').textContent = entry.name;
+        row.querySelector('.fkcal').textContent = entry.kcal + ' kcal';
+        row.querySelector('.fdel').addEventListener('click', () => {
+          entries.splice(idx, 1);
+          setTodayEntries(entries);
+          renderTracker();
+        });
+        list.appendChild(row);
+      });
+    }
+
+    const consumed = entries.reduce((sum, e) => sum + e.kcal, 0);
+    document.getElementById('consumedOut').textContent = consumed.toLocaleString('de-DE');
+
+    const state = loadState();
+    const target = currentTarget || state.target;
+    if (target) {
+      document.getElementById('targetRef').textContent = target.toLocaleString('de-DE') + ' kcal';
+      const pct = Math.min((consumed / target) * 100, 100);
+      const fill = document.getElementById('progressFill');
+      fill.style.width = pct + '%';
+      fill.classList.toggle('over', consumed > target);
+    }
+  }
+
+  document.getElementById('addFoodBtn').addEventListener('click', addFood);
+  document.getElementById('foodKcal').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addFood();
+  });
+  document.getElementById('foodName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addFood();
+  });
+
+  function addFood() {
+    const nameInput = document.getElementById('foodName');
+    const kcalInput = document.getElementById('foodKcal');
+    const name = nameInput.value.trim();
+    const kcal = parseFloat(kcalInput.value);
+
+    if (!name || !kcal || kcal <= 0) {
+      alert('Bitte Name und eine gültige Kalorienzahl angeben.');
+      return;
+    }
+
+    const entries = getTodayEntries();
+    entries.push({ name, kcal: Math.round(kcal) });
+    setTodayEntries(entries);
+    nameInput.value = '';
+    kcalInput.value = '';
+    nameInput.focus();
+    renderTracker();
+  }
+
+  // Init from saved state
+  const savedState = loadState();
+  if (savedState.target) {
+    currentTarget = savedState.target;
+    document.getElementById('targetRef').textContent = currentTarget.toLocaleString('de-DE') + ' kcal';
+  }
+  renderTracker();
+})();
+</script>
+</body>
+</html>

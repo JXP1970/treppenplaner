@@ -47,12 +47,26 @@
   main { width: 100%; max-width: 880px; }
 
   header { margin-bottom: 32px; }
+  header .label-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
   header .label {
     font-size: 11px;
     letter-spacing: 3px;
     text-transform: uppercase;
     color: var(--accent);
     font-weight: 600;
+  }
+  .version-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--accent-soft);
+    border-radius: 20px;
+    padding: 2px 9px;
+    letter-spacing: 0.5px;
   }
   header h1 {
     font-size: clamp(1.7rem, 4vw, 2.4rem);
@@ -308,7 +322,10 @@
 <body>
 <main>
   <header>
-    <div class="label">Kalorienrechner</div>
+    <div class="label-row">
+      <div class="label">Kalorienrechner</div>
+      <span class="version-badge" id="versionBadge"></span>
+    </div>
     <h1>Wie viele Kalorien brauchst du?</h1>
     <p>Berechne deinen Grundumsatz, Gesamtumsatz und ein Kalorienziel – und behalte deinen Tag im Blick.</p>
   </header>
@@ -429,11 +446,15 @@
     </div>
   </section>
 
-  <footer>Alle Daten bleiben lokal in deinem Browser gespeichert.</footer>
+  <footer>Alle Daten bleiben lokal in deinem Browser gespeichert. <span id="footerVersion"></span></footer>
 </main>
 
 <script>
 (function () {
+  const APP_VERSION = '1.1.0';
+  document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;
+  document.getElementById('footerVersion').textContent = '· v' + APP_VERSION;
+
   const genderSeg = document.getElementById('genderSeg');
   const goalSeg = document.getElementById('goalSeg');
   const goalRateWrap = document.getElementById('goalRateWrap');
